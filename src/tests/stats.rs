@@ -100,4 +100,10 @@ fn test_nan_std() {
     let std = test_vec.nan_std();
 
     assert_eq!(std.unwrap(), 2.0);
+
+    let test_vec = vec![2.0, 4.0, 4.0, 4.0, 5.0, 5.0, 7.0, 9.0, f32::NAN];
+
+    let std = test_vec.nan_std();
+
+    assert_eq!(std.unwrap(), 2.0);
 }
