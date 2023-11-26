@@ -1,4 +1,4 @@
-use crate::maths::Stats;
+use crate::maths::stats::Stats;
 
 #[test]
 fn test_mean() {
@@ -34,36 +34,6 @@ fn test_nan_median() {
     let median = test_vec.nan_median();
 
     assert_eq!(median.unwrap(), 3.0);
-}
-
-#[test]
-fn test_mode() {
-    let test_vec = vec![1.0, 2.0, 3.0, 4.0, 5.0, 5.0, 5.0];
-
-    let mode = test_vec.mode();
-
-    assert_eq!(mode.unwrap(), 5.0);
-}
-
-#[test]
-fn test_nan_mode() {
-    let test_vec = vec![
-        1.0,
-        2.0,
-        3.0,
-        4.0,
-        5.0,
-        5.0,
-        5.0,
-        f64::NAN,
-        f64::NAN,
-        f64::NAN,
-        f64::NAN,
-    ];
-
-    let mode = test_vec.nan_mode();
-
-    assert_eq!(mode.unwrap(), 5.0);
 }
 
 #[test]

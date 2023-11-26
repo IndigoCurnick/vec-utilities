@@ -1,3 +1,1 @@
-mod stats;
-
-pub use stats::Stats;
+pub mod stats;
