@@ -1,5 +1,5 @@
+use vec_utilities::maths::stats::Statistics;
 use vec_utilities::maths::stats::Stats;
-
 #[test]
 fn test_mean() {
     let test_vec = vec![2.0, 2.0, 2.0];
@@ -76,4 +76,22 @@ fn test_nan_std() {
     let std = test_vec.nan_std();
 
     assert_eq!(std.unwrap(), 2.0);
+}
+
+#[test]
+fn test_macro_mean() {
+    let x = vec![2.0, 3.0, 2.0, 3.0];
+    let y = vec![2.0, 3.0, 2.0, 3.0, f64::NAN];
+
+    let iter_mean = x.iter().mean();
+    let into_iter_mean = x.into_iter().mean();
+
+    let nan_mean = y.iter().nan_filter().iter().mean();
+
+    println!(
+        "Iter mean: {}\nInto iter mean:{}\nNaN Mean: {}",
+        iter_mean.unwrap(),
+        into_iter_mean.unwrap(),
+        nan_mean.unwrap()
+    )
 }

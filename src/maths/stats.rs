@@ -1,5 +1,8 @@
+use core::slice::Iter;
 use num_traits::float::TotalOrder;
 use num_traits::Float;
+use std::iter::Filter;
+use std::vec::IntoIter;
 pub trait Stats<T>
 where
     T: Float + TotalOrder,
@@ -120,3 +123,34 @@ where
 {
     return a.iter().filter(|x| !x.is_nan()).cloned().collect();
 }
+
+pub trait Statistics<T> {
+    fn mean(self) -> Option<T>;
+    fn nan_filter(self) -> Vec<T>;
+}
+
+macro_rules! impl_mean {
+    ($float:ty, $iter:ty) => {
+        impl Statistics<$float> for $iter {
+            fn mean(self) -> Option<$float> {
+                let (sum, count) =
+                    self.fold((0.0, 0), |(sum, count), item| (sum + item, count + 1));
+
+                if count > 0 {
+                    Some(sum / (count as $float))
+                } else {
+                    None
+                }
+            }
+
+            fn nan_filter(self) -> Vec<$float> {
+                self.filter(|x| !x.is_nan()).map(|x| x.to_owned()).collect()
+            }
+        }
+    };
+}
+
+impl_mean!(f64, IntoIter<f64>);
+impl_mean!(f32, IntoIter<f32>);
+impl_mean!(f64, Iter<'_, f64>);
+impl_mean!(f32, Iter<'_, f32>);
