@@ -1,4 +1,2 @@
-mod maths;
-
-#[cfg(test)]
-mod tests;
+pub mod generation;
+pub mod maths;

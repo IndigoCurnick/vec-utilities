@@ -1,4 +1,4 @@
-use crate::maths::stats::Stats;
+use vec_utilities::maths::stats::Stats;
 
 #[test]
 fn test_mean() {
