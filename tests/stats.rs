@@ -95,3 +95,38 @@ fn test_macro_mean() {
         nan_mean.unwrap()
     )
 }
+#[test]
+fn test_macro_variance() {
+    let x = vec![2.0, 3.0, 2.0, 3.0];
+    let y = vec![2.0, 3.0, 2.0, 3.0, f64::NAN];
+
+    let iter_var = x.iter().variance();
+    let into_iter_var = x.into_iter().variance();
+
+    let nan_var = y.iter().nan_filter().iter().variance();
+
+    println!(
+        "Iter var: {}\nInto iter var:{}\nNaN var: {}",
+        iter_var.unwrap(),
+        into_iter_var.unwrap(),
+        nan_var.unwrap()
+    )
+}
+
+#[test]
+fn test_macro_median() {
+    let x = vec![2.0, 3.0, 2.0, 3.0];
+    let y = vec![2.0, 3.0, 2.0, 3.0, f64::NAN];
+
+    let iter_var = x.iter().median();
+    let into_iter_var = x.into_iter().median();
+
+    let nan_var = y.iter().nan_filter().iter().median();
+
+    println!(
+        "Iter var: {}\nInto iter var:{}\nNaN var: {}",
+        iter_var.unwrap(),
+        into_iter_var.unwrap(),
+        nan_var.unwrap()
+    )
+}

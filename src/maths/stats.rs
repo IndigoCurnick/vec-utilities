@@ -126,6 +126,9 @@ where
 
 pub trait Statistics<T> {
     fn mean(self) -> Option<T>;
+    fn median(self) -> Option<T>;
+    fn variance(self) -> Option<T>;
+    fn std(self) -> Option<T>;
     fn nan_filter(self) -> Vec<T>;
 }
 
@@ -140,6 +143,60 @@ macro_rules! impl_mean {
                     Some(sum / (count as $float))
                 } else {
                     None
+                }
+            }
+            //TODO! Population implemented here. Sample may be wanted?
+            fn variance(self) -> Option<$float> {
+                let mut m = 0.0 as $float;
+                let mut s = 0.0 as $float;
+                let mut k = 1.0 as $float;
+
+                for item in self {
+                    let old_m = m;
+                    m = m + (item - m) / k;
+                    s = s + (item - m) * (item - old_m);
+                    k = k + 1.0 as $float;
+                }
+
+                if k > 0.0 as $float {
+                    return Some(s / (k - 1.0 as $float));
+                } else {
+                    return None;
+                }
+            }
+            fn std(self) -> Option<$float> {
+                self.variance().map(|x| x.sqrt())
+            }
+
+            fn median(self) -> Option<$float> {
+                let len = self.len();
+                if self.len() == 0 {
+                    return None;
+                }
+
+                let mut new = self.map(|x| x.to_owned()).collect::<Vec<$float>>();
+
+                new.sort_by(|a, b| a.total_cmp(b));
+
+                let mid = len / 2;
+
+                if len % 2 == 0 {
+                    let low = match new.get(mid - 1) {
+                        Some(x) => x,
+                        None => return None,
+                    };
+
+                    let high = match new.get(mid) {
+                        Some(x) => x,
+                        None => return None,
+                    };
+
+                    return Some((low + high) / (2.0 as $float));
+                } else {
+                    return match new.get(mid) {
+                        Some(x) => Some(*x),
+                        None => None,
+                    };
                 }
             }
 
