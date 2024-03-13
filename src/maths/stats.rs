@@ -1,140 +1,22 @@
-use core::slice::Iter;
-use num_traits::float::TotalOrder;
-use num_traits::Float;
-use std::iter::Filter;
-use std::vec::IntoIter;
-pub trait Stats<T>
-where
-    T: Float + TotalOrder,
-{
-    fn mean(&self) -> Option<T>;
-    fn variance(&self) -> Option<T>;
-    fn std(&self) -> Option<T>;
-    fn median(&self) -> Option<T>;
-    fn nan_mean(&self) -> Option<T>;
-    fn nan_variance(&self) -> Option<T>;
-    fn nan_std(&self) -> Option<T>;
-    fn nan_median(&self) -> Option<T>;
-}
-
-impl<T> Stats<T> for Vec<T>
-where
-    T: Float + TotalOrder,
-{
-    fn mean(&self) -> Option<T> {
-        let mut n = T::zero();
-        let mut sum = T::zero();
-        for item in self {
-            n = n.add(T::one());
-            sum = sum.add(*item);
-        }
-
-        if n > T::zero() {
-            return Some(sum / n);
-        } else {
-            return None;
-        }
-    }
-
-    fn variance(&self) -> Option<T> {
-        // Use Welford's method
-        // https://jonisalonen.com/2013/deriving-welfords-method-for-computing-variance/
-        let mut m = T::zero();
-        let mut s = T::zero();
-        let mut k = T::one();
-
-        for item in self {
-            let old_m = m;
-            m = m + (*item - m) / k;
-            s = s + (*item - m) * (*item - old_m);
-            k = k + T::one();
-        }
-
-        if k > T::zero() {
-            return Some(s / (k - T::one()));
-        } else {
-            return None;
-        }
-    }
-
-    fn std(&self) -> Option<T> {
-        return match self.variance() {
-            Some(x) => Some(x.sqrt()),
-            None => None,
-        };
-    }
-
-    fn median(&self) -> Option<T> {
-        let len = self.len();
-        if self.len() == 0 {
-            return None;
-        }
-
-        let mut new = self.clone();
-
-        new.sort_by(|a, b| a.total_cmp(b));
-
-        let mid = len / 2;
-
-        if len % 2 == 0 {
-            let low = match new.get(mid - 1) {
-                Some(x) => x,
-                None => return None,
-            };
-
-            let high = match new.get(mid) {
-                Some(x) => x,
-                None => return None,
-            };
-
-            return Some((low.add(*high)) / (T::one() + T::one()));
-        } else {
-            return match new.get(mid) {
-                Some(x) => Some(*x),
-                None => None,
-            };
-        }
-    }
-
-    fn nan_mean(&self) -> Option<T> {
-        let filter = filter_nan(&self);
-        return filter.mean();
-    }
-
-    fn nan_variance(&self) -> Option<T> {
-        let filter = filter_nan(&self);
-        return filter.variance();
-    }
-
-    fn nan_std(&self) -> Option<T> {
-        let filter = filter_nan(&self);
-        return filter.std();
-    }
-
-    fn nan_median(&self) -> Option<T> {
-        let filter = filter_nan(&self);
-        return filter.median();
-    }
-}
-
-fn filter_nan<T>(a: &Vec<T>) -> Vec<T>
-where
-    T: Float,
-{
-    return a.iter().filter(|x| !x.is_nan()).cloned().collect();
-}
-
 pub trait Statistics<T> {
     fn mean(self) -> Option<T>;
     fn median(self) -> Option<T>;
     fn variance(self) -> Option<T>;
     fn std(self) -> Option<T>;
-    fn nan_filter(self) -> Vec<T>;
+    fn nan_filter(self) -> Vec<T>; // TODO: NaN Filter isn't really a statistical thing so I think move eleswhere
+
+    // Called them float_max and float_min so that there's no conflicts
+    fn float_max(self) -> T;
+    fn float_min(self) -> T;
+
+    fn difference(self) -> T;
+    // fn nan_difference(self) -> Option<T>;
+    fn zero_crossings(self) -> usize;
 }
 
-macro_rules! impl_mean {
-    ($float:ty, $iter:ty) => {
-        impl Statistics<$float> for $iter {
+macro_rules! impl_stats {
+    ($float:ty) => {
+        impl<'a, T: Iterator<Item = &'a $float>> Statistics<$float> for T {
             fn mean(self) -> Option<$float> {
                 let (sum, count) =
                     self.fold((0.0, 0), |(sum, count), item| (sum + item, count + 1));
@@ -164,17 +46,23 @@ macro_rules! impl_mean {
                     return None;
                 }
             }
+
             fn std(self) -> Option<$float> {
                 self.variance().map(|x| x.sqrt())
             }
 
             fn median(self) -> Option<$float> {
-                let len = self.len();
-                if self.len() == 0 {
+                // TODO: Not 100% happy with this implementation due to the cloning but what can you do?
+                let elements: Vec<$float> = self.cloned().collect();
+                let len = elements.len();
+                if elements.len() == 0 {
                     return None;
                 }
 
-                let mut new = self.map(|x| x.to_owned()).collect::<Vec<$float>>();
+                let mut new = elements
+                    .iter()
+                    .map(|x| x.to_owned())
+                    .collect::<Vec<$float>>();
 
                 new.sort_by(|a, b| a.total_cmp(b));
 
@@ -203,11 +91,48 @@ macro_rules! impl_mean {
             fn nan_filter(self) -> Vec<$float> {
                 self.filter(|x| !x.is_nan()).map(|x| x.to_owned()).collect()
             }
+
+            fn float_max(self) -> $float {
+                self.fold(<$float>::NEG_INFINITY, |a, b| a.max(*b))
+            }
+
+            fn float_min(self) -> $float {
+                self.fold(<$float>::INFINITY, |a, b| a.min(*b))
+            }
+
+            fn difference(self) -> $float {
+                // self.float_max() - self.float_min()
+                // You'd like to do that but it consumes the iterator
+
+                let mut min = <$float>::INFINITY;
+                let mut max = <$float>::NEG_INFINITY;
+
+                for n in self {
+                    min = n.min(min);
+                    max = n.max(max);
+                }
+
+                max - min
+            }
+
+            fn zero_crossings(self) -> usize {
+                let mut zero_crossings = 0;
+                let mut prev_item = None;
+
+                for item in self {
+                    if let Some(prev) = prev_item {
+                        if prev * item < 0.0 {
+                            zero_crossings += 1;
+                        }
+                    }
+                    prev_item = Some(item);
+                }
+
+                zero_crossings
+            }
         }
     };
 }
 
-impl_mean!(f64, IntoIter<f64>);
-impl_mean!(f32, IntoIter<f32>);
-impl_mean!(f64, Iter<'_, f64>);
-impl_mean!(f32, Iter<'_, f32>);
+impl_stats!(f64);
+impl_stats!(f32);
