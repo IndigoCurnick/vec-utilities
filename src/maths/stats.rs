@@ -10,8 +10,9 @@ pub trait Statistics<T> {
     fn float_min(self) -> T;
 
     fn difference(self) -> T;
-    // fn nan_difference(self) -> Option<T>;
     fn zero_crossings(self) -> usize;
+
+    fn peak_average_ratio(self) -> Option<T>;
 }
 
 macro_rules! impl_stats {
@@ -129,6 +130,19 @@ macro_rules! impl_stats {
                 }
 
                 zero_crossings
+            }
+
+            fn peak_average_ratio(self) -> Option<$float> {
+                let (sum, count, max) = self.fold(
+                    (0.0, 0, <$float>::NEG_INFINITY),
+                    |(sum, count, max), item| (sum + item, count + 1, item.max(max)),
+                );
+
+                if count == 0 {
+                    return None;
+                } else {
+                    return Some(max / (sum / count as $float));
+                }
             }
         }
     };
