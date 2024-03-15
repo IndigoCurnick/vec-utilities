@@ -7,6 +7,10 @@ pub trait NanStatistics<T> {
     fn nan_median(self) -> Option<T>;
     fn nan_max(self) -> T;
     fn nan_min(self) -> T;
+
+    fn nan_difference(self) -> T;
+    fn nan_zero_crossings(self) -> usize;
+    fn nan_peak_average_ratio(self) -> Option<T>;
 }
 
 macro_rules! impl_nan_stat {
@@ -34,6 +38,18 @@ macro_rules! impl_nan_stat {
 
             fn nan_min(self) -> $float {
                 self.filter(|x| !x.is_nan()).float_min()
+            }
+
+            fn nan_difference(self) -> $float {
+                self.filter(|x| !x.is_nan()).difference()
+            }
+
+            fn nan_zero_crossings(self) -> usize {
+                self.filter(|x| !x.is_nan()).zero_crossings()
+            }
+
+            fn nan_peak_average_ratio(self) -> Option<$float> {
+                self.filter(|x| !x.is_nan()).peak_average_ratio()
             }
         }
     };

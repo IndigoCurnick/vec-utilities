@@ -3,7 +3,6 @@ pub trait Statistics<T> {
     fn median(self) -> Option<T>;
     fn variance(self) -> Option<T>;
     fn std(self) -> Option<T>;
-    fn nan_filter(self) -> Vec<T>; // TODO: NaN Filter isn't really a statistical thing so I think move eleswhere
 
     // Called them float_max and float_min so that there's no conflicts
     fn float_max(self) -> T;
@@ -15,7 +14,7 @@ pub trait Statistics<T> {
     fn peak_average_ratio(self) -> Option<T>;
 }
 
-macro_rules! impl_stats {
+macro_rules! impl_stats_iterator {
     ($float:ty) => {
         impl<'a, T: Iterator<Item = &'a $float>> Statistics<$float> for T {
             fn mean(self) -> Option<$float> {
@@ -89,10 +88,6 @@ macro_rules! impl_stats {
                 }
             }
 
-            fn nan_filter(self) -> Vec<$float> {
-                self.filter(|x| !x.is_nan()).map(|x| x.to_owned()).collect()
-            }
-
             fn float_max(self) -> $float {
                 self.fold(<$float>::NEG_INFINITY, |a, b| a.max(*b))
             }
@@ -148,5 +143,5 @@ macro_rules! impl_stats {
     };
 }
 
-impl_stats!(f64);
-impl_stats!(f32);
+impl_stats_iterator!(f64);
+impl_stats_iterator!(f32);

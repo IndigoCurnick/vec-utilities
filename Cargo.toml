@@ -6,4 +6,3 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-num-traits = { git = "https://github.com/rust-num/num-traits.git", branch = "master" }
