@@ -1,3 +1,5 @@
+/// NOTE: if there are any NaNs in the Iterator then this trait will prduce
+/// unstable results
 pub trait Statistics<T> {
     fn mean(self) -> Option<T>;
     fn median(self) -> Option<T>;

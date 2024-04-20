@@ -1,5 +1,7 @@
 use crate::maths::stats::Statistics;
 
+/// Use this trait if you suspect you might have NaNs in your Vec and you want to
+/// ignore them for the computations
 pub trait NanStatistics<T> {
     fn nan_mean(self) -> Option<T>;
     fn nan_variance(self) -> Option<T>;

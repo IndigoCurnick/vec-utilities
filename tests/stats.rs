@@ -1,4 +1,4 @@
-use vec_utilities::maths::stats::Statistics;
+use vec_utilities::maths::Statistics;
 
 #[test]
 fn test_mean() {

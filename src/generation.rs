@@ -14,19 +14,6 @@ where
         return None;
     }
 
-    // let vec_range = if start > end {
-    //     start - end
-    // } else {
-    //     end - start
-    // };
-
-    // let count_usize = match (vec_range / step).try_into() {
-    //     Ok(x) => x,
-    //     Err(_) => 100_usize,
-    // };
-
-    // let mut output = Vec::with_capacity(count_usize);
-
     let mut output = Vec::new(); // Would like capacity... but numbers
     let mut count = start;
     output.push(count);

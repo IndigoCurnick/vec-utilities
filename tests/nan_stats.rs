@@ -1,4 +1,4 @@
-use vec_utilities::maths::nan_stats::NanStatistics;
+use vec_utilities::maths::NanStatistics;
 
 #[test]
 fn test_nan_median() {
