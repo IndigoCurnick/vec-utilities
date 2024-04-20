@@ -1,171 +1,149 @@
-use std::collections::HashMap;
+/// NOTE: if there are any NaNs in the Iterator then this trait will prduce
+/// unstable results
+pub trait Statistics<T> {
+    fn mean(self) -> Option<T>;
+    fn median(self) -> Option<T>;
+    fn variance(self) -> Option<T>;
+    fn std(self) -> Option<T>;
 
-pub trait Stats {
-    fn mean(&self) -> Option<f64>;
-    fn nan_mean(&self) -> Option<f64>;
-    fn median(self) -> Option<f64>;
-    fn nan_median(&self) -> Option<f64>;
-    fn mode(&self) -> Option<f64>;
-    fn nan_mode(&self) -> Option<f64>;
-    fn variance(&self) -> Option<f64>;
-    fn nan_variance(&self) -> Option<f64>;
-    fn std(&self) -> Option<f64>;
-    fn nan_std(&self) -> Option<f64>;
+    // Called them float_max and float_min so that there's no conflicts
+    fn float_max(self) -> T;
+    fn float_min(self) -> T;
+
+    fn difference(self) -> T;
+    fn zero_crossings(self) -> usize;
+
+    fn peak_average_ratio(self) -> Option<T>;
 }
 
-impl Stats for Vec<f64> {
-    fn mean(&self) -> Option<f64> {
-        if self.len() > 0 {
-            return Some(self.iter().sum::<f64>() / self.len() as f64);
-        } else {
-            return None;
-        }
-    }
+macro_rules! impl_stats_iterator {
+    ($float:ty) => {
+        impl<'a, T: Iterator<Item = &'a $float>> Statistics<$float> for T {
+            fn mean(self) -> Option<$float> {
+                let (sum, count) =
+                    self.fold((0.0, 0), |(sum, count), item| (sum + item, count + 1));
 
-    fn nan_mean(&self) -> Option<f64> {
-        if self.len() > 0 {
-            return Some(
-                self.iter().filter(|x| !x.is_nan()).sum::<f64>()
-                    / self.iter().filter(|x| !x.is_nan()).count() as f64,
-            );
-        } else {
-            return None;
-        }
-    }
+                if count > 0 {
+                    Some(sum / (count as $float))
+                } else {
+                    None
+                }
+            }
+            //TODO! Population implemented here. Sample may be wanted?
+            fn variance(self) -> Option<$float> {
+                let mut m = 0.0 as $float;
+                let mut s = 0.0 as $float;
+                let mut k = 1.0 as $float;
 
-    fn median(mut self) -> Option<f64> {
-        // Median consumes self because we need to sort the vec
-        // This means the programmer can choose whether to `.clone().median()` for a performance hit
-        // Or `.median()` if they no longer need the `Vec` after this
+                for item in self {
+                    let old_m = m;
+                    m = m + (item - m) / k;
+                    s = s + (item - m) * (item - old_m);
+                    k = k + 1.0 as $float;
+                }
 
-        let n = self.len();
+                if k > 0.0 as $float {
+                    return Some(s / (k - 1.0 as $float));
+                } else {
+                    return None;
+                }
+            }
 
-        if n == 0 {
-            return None;
-        }
+            fn std(self) -> Option<$float> {
+                self.variance().map(|x| x.sqrt())
+            }
 
-        // See https://doc.rust-lang.org/std/primitive.f64.html#method.total_cmp
-        // `total_cmp` has been implemented on f32 and f64 since 1.62.0
-        self.sort_by(|a, b| a.total_cmp(b));
-        let mid_index = n / 2; // Note, this is automatically a floor division because of how Rust usize works
-                               // In Python you would do something like `mid_index = n // 2`
+            fn median(self) -> Option<$float> {
+                // TODO: Not 100% happy with this implementation due to the cloning but what can you do?
+                let elements: Vec<$float> = self.cloned().collect();
+                let len = elements.len();
+                if elements.len() == 0 {
+                    return None;
+                }
 
-        if n % 2 == 1 {
-            return Some(self[mid_index]);
-        } else {
-            return Some((self[mid_index - 1] + self[mid_index + 1]) / 2.0);
-        }
-    }
+                let mut new = elements
+                    .iter()
+                    .map(|x| x.to_owned())
+                    .collect::<Vec<$float>>();
 
-    fn nan_median(&self) -> Option<f64> {
-        // Unlike median, I think we need to make a new vec in memory here, so
-        // there would be no performance benefit of passing by value. Thus,
-        // unlike `median`, we take a reference.
+                new.sort_by(|a, b| a.total_cmp(b));
 
-        let n = self.len();
+                let mid = len / 2;
 
-        if n == 0 {
-            return None;
-        }
+                if len % 2 == 0 {
+                    let low = match new.get(mid - 1) {
+                        Some(x) => x,
+                        None => return None,
+                    };
 
-        let no_nans = self
-            .iter()
-            .filter(|&x| !x.is_nan())
-            .cloned()
-            .collect::<Vec<f64>>();
+                    let high = match new.get(mid) {
+                        Some(x) => x,
+                        None => return None,
+                    };
 
-        return no_nans.median();
-    }
+                    return Some((low + high) / (2.0 as $float));
+                } else {
+                    return match new.get(mid) {
+                        Some(x) => Some(*x),
+                        None => None,
+                    };
+                }
+            }
 
-    fn mode(&self) -> Option<f64> {
-        fn insert_map(num: String, m: &mut HashMap<String, usize>) {
-            if let Some(x) = m.get_mut(&num) {
-                *x += 1;
-            } else {
-                m.insert(num, 1);
+            fn float_max(self) -> $float {
+                self.fold(<$float>::NEG_INFINITY, |a, b| a.max(*b))
+            }
+
+            fn float_min(self) -> $float {
+                self.fold(<$float>::INFINITY, |a, b| a.min(*b))
+            }
+
+            fn difference(self) -> $float {
+                // self.float_max() - self.float_min()
+                // You'd like to do that but it consumes the iterator
+
+                let mut min = <$float>::INFINITY;
+                let mut max = <$float>::NEG_INFINITY;
+
+                for n in self {
+                    min = n.min(min);
+                    max = n.max(max);
+                }
+
+                max - min
+            }
+
+            fn zero_crossings(self) -> usize {
+                let mut zero_crossings = 0;
+                let mut prev_item = None;
+
+                for item in self {
+                    if let Some(prev) = prev_item {
+                        if prev * item < 0.0 {
+                            zero_crossings += 1;
+                        }
+                    }
+                    prev_item = Some(item);
+                }
+
+                zero_crossings
+            }
+
+            fn peak_average_ratio(self) -> Option<$float> {
+                let (sum, count, max) = self.fold(
+                    (0.0, 0, <$float>::NEG_INFINITY),
+                    |(sum, count, max), item| (sum + item, count + 1, item.max(max)),
+                );
+
+                if count == 0 {
+                    return None;
+                } else {
+                    return Some(max / (sum / count as $float));
+                }
             }
         }
-
-        if self.len() == 0 {
-            return None;
-        }
-
-        let mut m: HashMap<String, usize> = HashMap::new();
-
-        self.iter().for_each(|x| insert_map(x.to_string(), &mut m));
-
-        let mut mode_float = "".to_string();
-        let mut mode_count = 0;
-
-        for (k, v) in m.iter() {
-            if v > &mode_count {
-                mode_float = k.clone();
-                mode_count = *v;
-            }
-        }
-
-        return Some(mode_float.parse::<f64>().unwrap());
-    }
-
-    fn nan_mode(&self) -> Option<f64> {
-        let n = self.len();
-
-        if n == 0 {
-            return None;
-        }
-
-        let no_nans = self
-            .iter()
-            .filter(|&x| !x.is_nan())
-            .cloned()
-            .collect::<Vec<f64>>();
-
-        return no_nans.mode();
-    }
-
-    fn variance(&self) -> Option<f64> {
-        let n = self.len();
-
-        if n == 0 {
-            return None;
-        }
-
-        let mean = self.mean()?;
-
-        return Some(self.iter().map(|x| (x - mean).powf(2.0)).sum::<f64>() / n as f64);
-    }
-
-    fn nan_variance(&self) -> Option<f64> {
-        let n = self.len();
-
-        if n == 0 {
-            return None;
-        }
-
-        let no_nan: Vec<f64> = self.iter().filter(|x| !x.is_nan()).cloned().collect();
-
-        return no_nan.variance();
-    }
-
-    fn std(&self) -> Option<f64> {
-        return match self.variance() {
-            Some(x) => Some(x.powf(0.5)),
-            None => None,
-        };
-    }
-
-    fn nan_std(&self) -> Option<f64> {
-        let n = self.len();
-
-        if n == 0 {
-            return None;
-        }
-
-        let no_nan: Vec<f64> = self.iter().filter(|x| !x.is_nan()).cloned().collect();
-
-        return match no_nan.variance() {
-            Some(x) => Some(x.powf(0.5)),
-            None => None,
-        };
-    }
+    };
 }
+
+impl_stats_iterator!(f64);
+impl_stats_iterator!(f32);
