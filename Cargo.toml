@@ -1,6 +1,6 @@
 [package]
 name = "vec-utilities"
-version = "0.0.1"
+version = "0.0.2"
 edition = "2021"
 authors = [
     "Indigo Curnick <indigocurnick@gmail.com>, Andrew Bowell <andrewbowell@mail.com>",
